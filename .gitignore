@@ -1,0 +1,11 @@
+node_modules
+build
+setup-admin.js
+
+# .env
+.env
+
+# Logs y archivos temporales
+*.log
+*~
+Logs
