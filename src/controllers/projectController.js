@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const { sequelize } = require('../config/database');
 const Project = require('../models/Project');
 const ProjectDeveloper = require('../models/ProjectDeveloper');
 const ProjectAsset = require('../models/ProjectAsset');
