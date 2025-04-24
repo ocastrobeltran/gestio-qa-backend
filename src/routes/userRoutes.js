@@ -19,6 +19,7 @@ router.get('/', (req, res) => {
   });
 });
 
+
 // Ruta GET por ID temporal
 router.get('/:id', (req, res) => {
   res.status(200).json({

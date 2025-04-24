@@ -1,78 +1,86 @@
-// Controlador simple para reportes
+const { sequelize } = require('../config/database');
+const Project = require('../models/Project');
+const { catchAsync } = require('../utils/helpers');
 
 // Obtener reporte por estado
-exports.getProjectsByStatus = (req, res) => {
-    // En una implementación real, consultarías los datos de la base de datos
-    
-    res.status(200).json({
-      status: 'success',
-      data: {
-        statusReport: [
-          { status: 'En análisis', count: 2 },
-          { status: 'En validación', count: 1 },
-          { status: 'En pruebas', count: 3 },
-          { status: 'Aprobado', count: 1 }
-        ]
-      }
-    });
-  };
+exports.getProjectsByStatus = catchAsync(async (req, res, next) => {
+  const statusReport = await Project.findAll({
+    attributes: [
+      'status',
+      [sequelize.fn('COUNT', sequelize.col('status')), 'count']
+    ],
+    group: ['status']
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      statusReport
+    }
+  });
+});
   
   // Obtener reporte por analista
-  exports.getProjectsByAnalyst = (req, res) => {
-    // En una implementación real, consultarías los datos de la base de datos
-    
-    res.status(200).json({
-      status: 'success',
-      data: {
-        analystReport: [
-          { analyst: 'Analista 1', count: 3 },
-          { analyst: 'Analista 2', count: 4 }
-        ]
+exports.getProjectsByAnalyst = catchAsync(async (req, res, next) => {
+  const analystReport = await Project.findAll({
+    attributes: [
+      'qa_analyst_id',
+      [sequelize.fn('COUNT', sequelize.col('qa_analyst_id')), 'count']
+    ],
+    include: [
+      {
+        model: require('../models/User'),
+        as: 'qaAnalyst',
+        attributes: ['id', 'full_name']
       }
-    });
-  };
+    ],
+    group: ['qa_analyst_id', 'qaAnalyst.id']
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      analystReport
+    }
+  });
+});
   
   // Obtener reporte por cliente
-  exports.getProjectsByClient = (req, res) => {
-    // En una implementación real, consultarías los datos de la base de datos
-    
-    res.status(200).json({
-      status: 'success',
-      data: {
-        clientReport: [
-          { client: 'Constructora Bolivar', count: 2 },
-          { client: 'Banco XYZ', count: 3 },
-          { client: 'Empresa ABC', count: 1 }
-        ]
-      }
-    });
-  };
+exports.getProjectsByClient = catchAsync(async (req, res, next) => {
+  const clientReport = await Project.findAll({
+    attributes: [
+      'client',
+      [sequelize.fn('COUNT', sequelize.col('client')), 'count']
+    ],
+    group: ['client']
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      clientReport
+    }
+  });
+});
   
-  // Obtener reporte detallado
-  exports.getDetailedReport = (req, res) => {
-    // En una implementación real, consultarías los datos de la base de datos con filtros
-    
-    res.status(200).json({
-      status: 'success',
-      data: {
-        report: [
-          {
-            id: 1,
-            title: 'Bolivar Web',
-            client: 'Constructora Bolivar',
-            status: 'En pruebas',
-            qa_analyst: 'Analista 1',
-            created_at: '2023-01-01T12:00:00Z'
-          },
-          {
-            id: 2,
-            title: 'Portal Clientes',
-            client: 'Banco XYZ',
-            status: 'En análisis',
-            qa_analyst: 'Analista 2',
-            created_at: '2023-02-01T12:00:00Z'
-          }
-        ]
+// Obtener reporte detallado
+exports.getDetailedReport = catchAsync(async (req, res, next) => {
+  const report = await Project.findAll({
+    attributes: ['id', 'title', 'client', 'status', 'created_at'],
+    include: [
+      {
+        model: require('../models/User'),
+        as: 'qaAnalyst',
+        attributes: ['id', 'full_name']
       }
-    });
-  };
+    ],
+    order: [['created_at', 'DESC']]
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      report
+    }
+  });
+});
