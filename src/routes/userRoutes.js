@@ -1,5 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const userController = require('../controllers/userController');
+
+// Obtener todos los usuarios
+router.get('/', userController.getAllUsers);
 
 // Placeholder para el controlador de usuarios
 // Normalmente importarías: const userController = require('../controllers/userController');
