@@ -10,6 +10,7 @@ const AppError = require('../utils/appError');
 const { catchAsync } = require('../utils/helpers');
 const historyService = require('../services/historyService');
 const config = require('../config/config');
+const emailService = require('../services/emailService');
 
 // Get all projects (with filtering)
 exports.getAllProjects = catchAsync(async (req, res, next) => {
@@ -205,6 +206,24 @@ exports.createProject = catchAsync(async (req, res, next) => {
       transaction
     });
     
+    if (project.qa_analyst_id) {
+      try {
+        const analyst = await User.findByPk(project.qa_analyst_id);
+        if (analyst) {
+          await emailService.sendProjectAssignment(
+            analyst.email,
+            analyst.full_name,
+            project.title,
+            project.id
+          );
+          console.log(`Notificación enviada al analista ${analyst.full_name}`);
+        }
+      } catch (emailError) {
+        console.error('Error al enviar notificación por correo:', emailError);
+        // No interrumpimos la transacción por un error de correo
+      }
+    }
+
     // Commit transaction
     await transaction.commit();
     
@@ -381,4 +400,86 @@ exports.deleteProject = catchAsync(async (req, res, next) => {
     status: 'success',
     data: null
   });
+});
+
+exports.assignAnalyst = catchAsync(async (req, res, next) => {
+  const { projectId, analystId } = req.body;
+  
+  // Iniciar transacción
+  const transaction = await sequelize.transaction();
+  
+  try {
+    // Buscar el proyecto
+    const project = await Project.findByPk(projectId, { transaction });
+    
+    if (!project) {
+      await transaction.rollback();
+      return next(new AppError('No project found with that ID', 404));
+    }
+    
+    // Guardar el analista anterior para el historial
+    const oldAnalystId = project.qa_analyst_id;
+    
+    // Actualizar el proyecto con el nuevo analista
+    await project.update({ qa_analyst_id: analystId }, { transaction });
+    
+    // Obtener información del nuevo analista
+    const analyst = await User.findByPk(analystId, {
+      attributes: ['id', 'full_name', 'email'],
+      transaction
+    });
+    
+    if (!analyst) {
+      await transaction.rollback();
+      return next(new AppError('No analyst found with that ID', 404));
+    }
+    
+    // Añadir al historial
+    const oldAnalyst = oldAnalystId ? 
+      await User.findByPk(oldAnalystId, { transaction }) : null;
+    
+    await historyService.addHistory({
+      project_id: projectId,
+      changed_by: req.user.id,
+      change_type: 'Cambio de QA',
+      old_value: oldAnalyst ? oldAnalyst.full_name : 'Sin asignar',
+      new_value: analyst.full_name,
+      transaction
+    });
+    
+    // Confirmar transacción
+    await transaction.commit();
+    
+    // Enviar notificación por correo (asíncrono, no esperamos)
+    if (analyst.email) {
+      emailService.sendProjectAssignment(
+        analyst.email,
+        analyst.full_name,
+        project.title,
+        project.id
+      ).catch(err => {
+        console.error(`Error al enviar notificación de asignación a ${analyst.email}:`, err);
+      });
+    }
+    
+    res.status(200).json({
+      status: 'success',
+      message: 'Analyst assigned successfully',
+      data: {
+        project: {
+          id: project.id,
+          title: project.title,
+          qa_analyst_id: analystId,
+          qa_analyst: {
+            id: analyst.id,
+            full_name: analyst.full_name,
+            email: analyst.email
+          }
+        }
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    next(error);
+  }
 });

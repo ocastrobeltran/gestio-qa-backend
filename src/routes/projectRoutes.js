@@ -1,7 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const projectController = require('../controllers/projectController');
-const commentController = require('../controllers/commentController');
+const commentRoutes = require('./commentRoutes');
 const { protect, adminOnly, analystOrAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validator');
 
@@ -55,6 +55,9 @@ const projectValidation = [
 // Protect all project routes
 router.use(protect);
 
+// Usar rutas de comentarios
+router.use('/:id/comments', commentRoutes);
+
 // Get all projects
 router.get('/', projectController.getAllProjects);
 
@@ -82,12 +85,16 @@ router.patch(
 // Delete project (admin only)
 router.delete('/:id', adminOnly, projectController.deleteProject);
 
-// Project comments
+// Asignar analista a un proyecto
 router.post(
-  '/:id/comments',
-  body('comment_text').notEmpty().withMessage('Comment text is required'),
+  '/assign-analyst',
+  adminOnly,
+  [
+    body('projectId').notEmpty().withMessage('Project ID is required'),
+    body('analystId').notEmpty().withMessage('Analyst ID is required')
+  ],
   validate,
-  commentController.addComment
+  projectController.assignAnalyst
 );
 
 module.exports = router;
