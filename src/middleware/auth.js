@@ -3,6 +3,7 @@ const { promisify } = require('util');
 const config = require('../config/config');
 const User = require('../models/User');
 const AppError = require('../utils/appError');
+const { catchAsync } = require('../utils/helpers');
 
 // Protect routes - verify JWT token
 exports.protect = async (req, res, next) => {
@@ -65,3 +66,62 @@ exports.analystOrAdmin = (req, res, next) => {
   }
   next();
 };
+
+// Catch async errors
+exports.refreshToken = catchAsync(async (req, res, next) => {
+  const { refreshToken } = req.body;
+  
+  if (!refreshToken) {
+    return next(new AppError('Please provide refresh token', 400));
+  }
+  
+  // Verificar refresh token
+  let decoded;
+  try {
+    decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
+  } catch (err) {
+    console.error("Error verificando refresh token:", err);
+    return next(new AppError('Invalid refresh token', 401));
+  }
+  
+  // Buscar usuario con ese refresh token
+  const user = await User.findOne({ 
+    where: { 
+      id: decoded.id,
+      refresh_token: refreshToken,
+      refresh_token_expires: { [Op.gt]: new Date() }
+    } 
+  });
+  
+  if (!user) {
+    return next(new AppError('Invalid refresh token or token expired', 401));
+  }
+  
+  // Generar nuevo access token
+  const accessToken = jwt.sign(
+    { 
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      full_name: user.full_name
+    }, 
+    config.jwt.secret, 
+    {
+      expiresIn: config.jwt.expiresIn
+    }
+  );
+  
+  // Enviar nuevo access token
+  res.status(200).json({
+    status: 'success',
+    accessToken,
+    data: {
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role
+      }
+    }
+  });
+});

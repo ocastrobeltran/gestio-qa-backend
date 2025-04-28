@@ -36,6 +36,14 @@ const User = sequelize.define('User', {
   reset_token_expires: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  refresh_token: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  refresh_token_expires: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   tableName: 'users',

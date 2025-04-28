@@ -36,9 +36,27 @@ async function startServer() {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-  logger.error('UNHANDLED REJECTION! Shutting down...');
-  logger.error(err.name, err.message);
-  process.exit(1);
+  console.error('UNHANDLED REJECTION! Shutting down...');
+  console.error(err.name, err.message);
+  console.error(err.stack);
+  
+  // No cerrar el servidor inmediatamente en desarrollo
+  if (process.env.NODE_ENV === 'production') {
+    server.close(() => {
+      process.exit(1);
+    });
+  }
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION! Shutting down...');
+  console.error(err.name, err.message);
+  console.error(err.stack);
+  
+  // No cerrar el servidor inmediatamente en desarrollo
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
 });
 
 startServer();
