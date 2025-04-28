@@ -6,10 +6,11 @@ module.exports = {
       refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'  // 7 días para el refresh token
     },
     email: {
-      host: process.env.EMAIL_HOST,
-      port: process.env.EMAIL_PORT,
+      host: process.env.EMAIL_HOST || 'smtp-relay.brevo.com',
+      port: parseInt(process.env.EMAIL_PORT || '587'),
       user: process.env.EMAIL_USER,
       password: process.env.EMAIL_PASSWORD,
+      apiKey: process.env.EMAIL_API_KEY,
       from: process.env.EMAIL_FROM || 'noreply@qamanager.com'
     },
     passwordReset: {

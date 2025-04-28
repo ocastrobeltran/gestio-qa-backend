@@ -4,20 +4,20 @@ const logger = require('../utils/logger');
 
 // Create transporter
 const createTransporter = () => {
-  // For production
-  if (process.env.NODE_ENV === 'production') {
+  // For production or development
+  if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'development') {
     return nodemailer.createTransport({
-      host: config.email.host,
-      port: config.email.port,
-      secure: config.email.port === 465,
+      host: 'smtp-relay.sendinblue.com', // Use the domain that matches the certificate
+      port: 587,
+      secure: false,
       auth: {
-        user: config.email.user,
-        pass: config.email.password
+        user: '8ba290001@smtp-brevo.com', // Your Brevo SMTP login
+        pass: 'P7qRBdYywL0vMzj2' // Your Brevo SMTP password
       }
     });
   }
   
-  // For development/testing - use ethereal.email
+  // For testing - use ethereal.email
   return nodemailer.createTransport({
     host: 'smtp.ethereal.email',
     port: 587,
@@ -35,16 +35,20 @@ const sendEmail = async (options) => {
     const transporter = createTransporter();
     
     const mailOptions = {
-      from: `QA Manager <${config.email.from}>`,
+      from: 'QA gestion <ocastrobeltran@gmail.com>', // Generic domain since you don't have a custom one
       to: options.email,
       subject: options.subject,
       html: options.html
     };
     
+    logger.info(`Attempting to send email to: ${options.email}`);
     const info = await transporter.sendMail(mailOptions);
     
     if (process.env.NODE_ENV === 'development') {
-      logger.info(`Email preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+      logger.info(`Email sent: ${info.messageId}`);
+      if (info.testMessageUrl) {
+        logger.info(`Email preview URL: ${info.testMessageUrl}`);
+      }
     }
     
     return info;
@@ -72,7 +76,8 @@ exports.sendPasswordReset = async (email, name, resetUrl) => {
       </p>
       <p>Este enlace expirará en 1 hora.</p>
       <p>Si no solicitaste este cambio, puedes ignorar este correo y tu contraseña permanecerá sin cambios.</p>
-      <p>Saludos,<br>Equipo QA Manager</p>
+      <p>Saludos,<br>Equipo QA</br></p>
+      <p><br>Legger</br></p>
     </div>
   `;
   
@@ -100,7 +105,8 @@ exports.sendProjectAssignment = async (email, name, projectTitle, projectId) => 
           Ver proyecto
         </a>
       </p>
-      <p>Saludos,<br>Equipo QA Manager</p>
+      <p>Saludos,<br>Equipo QA</br></p>
+      <p><br>Legger</br></p>
     </div>
   `;
   
@@ -128,7 +134,8 @@ exports.sendCommentNotification = async (email, name, projectTitle, projectId, c
           Ver comentario
         </a>
       </p>
-      <p>Saludos,<br>Equipo QA Manager</p>
+      <p>Saludos,<br>Equipo QA</br></p>
+      <p><br>Legger</br></p>
     </div>
   `;
   
@@ -137,4 +144,10 @@ exports.sendCommentNotification = async (email, name, projectTitle, projectId, c
     subject,
     html
   });
+};
+
+module.exports = {
+  sendPasswordReset: exports.sendPasswordReset,
+  sendProjectAssignment: exports.sendProjectAssignment,
+  sendCommentNotification: exports.sendCommentNotification
 };

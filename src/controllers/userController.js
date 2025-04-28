@@ -16,3 +16,20 @@ exports.getAllUsers = catchAsync(async (req, res, next) => {
     }
   });
 });
+
+exports.getUser = catchAsync(async (req, res, next) => {
+  const user = await User.findByPk(req.params.id, {
+    attributes: ['id', 'full_name', 'email', 'role', 'created_at']
+  });
+
+  if (!user) {
+    return next(new AppError('No se encontró ningún usuario con ese ID', 404));
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      user
+    }
+  });
+});
