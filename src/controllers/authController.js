@@ -5,6 +5,7 @@ const config = require('../config/config');
 const AppError = require('../utils/appError');
 const emailService = require('../services/emailService');
 const { catchAsync } = require('../utils/helpers');
+const { Op } = require('sequelize');
 
 // Generate JWT token
 const signToken = (id) => {
@@ -13,16 +14,44 @@ const signToken = (id) => {
   });
 };
 
+// Middleware to refresh token
+const signRefreshToken = (id) => {
+  return jwt.sign({ id }, config.jwt.refreshSecret, {
+    expiresIn: config.jwt.refreshExpiresIn
+  });
+};
+
 // Create and send token response
 const createSendToken = (user, statusCode, res) => {
-  const token = signToken(user.id);
+  // Generar access token
+  const accessToken = jwt.sign(
+    { id: user.id, email: user.email, role: user.role },
+    config.jwt.secret,
+    { expiresIn: config.jwt.expiresIn }
+  );
+  
+  // Generar refresh token
+  const refreshToken = jwt.sign(
+    { id: user.id },
+    config.jwt.refreshSecret,
+    { expiresIn: config.jwt.refreshExpiresIn || '7d' }
+  );
+  
+  // Guardar refresh token en la base de datos
+  const refreshTokenExpires = new Date();
+  refreshTokenExpires.setDate(refreshTokenExpires.getDate() + 7); // 7 días
+  
+  user.refresh_token = refreshToken;
+  user.refresh_token_expires = refreshTokenExpires;
+  user.save();
   
   // Remove password from output
   user.password_hash = undefined;
   
   res.status(statusCode).json({
     status: 'success',
-    token,
+    accessToken,
+    refreshToken,
     data: {
       user
     }
@@ -63,8 +92,39 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError('Incorrect email or password', 401));
   }
   
-  // Send token
-  createSendToken(user, 200, res);
+  // Generar access token
+  const accessToken = jwt.sign(
+    { id: user.id, email: user.email, role: user.role },
+    config.jwt.secret,
+    { expiresIn: config.jwt.expiresIn }
+  );
+  
+  // Generar refresh token
+  const refreshToken = jwt.sign(
+    { id: user.id },
+    config.jwt.refreshSecret || config.jwt.secret,
+    { expiresIn: config.jwt.refreshExpiresIn || '7d' }
+  );
+  
+  // Guardar refresh token en la base de datos
+  const refreshTokenExpires = new Date();
+  refreshTokenExpires.setDate(refreshTokenExpires.getDate() + 7); // 7 días
+  
+  user.refresh_token = refreshToken;
+  user.refresh_token_expires = refreshTokenExpires;
+  await user.save();
+  
+  // Remove password from output
+  user.password_hash = undefined;
+  
+  res.status(200).json({
+    status: 'success',
+    accessToken,
+    refreshToken,
+    data: {
+      user
+    }
+  });
 });
 
 // Forgot password
@@ -150,4 +210,80 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   
   // Log user in, send JWT
   createSendToken(user, 200, res);
+});
+
+// Refresh token
+exports.refreshToken = catchAsync(async (req, res, next) => {
+  const { refreshToken } = req.body;
+  
+  if (!refreshToken) {
+    return next(new AppError('Please provide refresh token', 400));
+  }
+  
+  // Verificar refresh token
+  let decoded;
+  try {
+    decoded = jwt.verify(refreshToken, config.jwt.refreshSecret || config.jwt.secret);
+  } catch (err) {
+    console.error("Error verificando refresh token:", err);
+    return next(new AppError('Invalid refresh token', 401));
+  }
+  
+  // Buscar usuario con ese refresh token
+  const user = await User.findOne({ 
+    where: { 
+      id: decoded.id,
+      refresh_token: refreshToken
+    } 
+  });
+  
+  if (!user) {
+    return next(new AppError('Invalid refresh token or user not found', 401));
+  }
+  
+  // Verificar si el refresh token ha expirado
+  if (user.refresh_token_expires && new Date(user.refresh_token_expires) < new Date()) {
+    return next(new AppError('Refresh token expired', 401));
+  }
+  
+  // Generar nuevo access token
+  const accessToken = jwt.sign(
+    { id: user.id, email: user.email, role: user.role },
+    config.jwt.secret,
+    { expiresIn: config.jwt.expiresIn }
+  );
+  
+  // Enviar nuevo access token
+  res.status(200).json({
+    status: 'success',
+    accessToken,
+    data: {
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role
+      }
+    }
+  });
+});
+
+// Logout
+exports.logout = catchAsync(async (req, res, next) => {
+  // Obtener el usuario actual
+  const user = await User.findByPk(req.user.id);
+  
+  if (!user) {
+    return next(new AppError('User not found', 404));
+  }
+  
+  // Limpiar refresh token
+  user.refresh_token = null;
+  user.refresh_token_expires = null;
+  await user.save();
+  
+  res.status(200).json({
+    status: 'success',
+    message: 'Logged out successfully'
+  });
 });

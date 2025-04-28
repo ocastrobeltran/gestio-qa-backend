@@ -48,11 +48,17 @@ router.post('/login', loginValidation, validate, authController.login);
 router.post('/forgot-password', authController.forgotPassword);
 router.patch('/reset-password/:token', resetPasswordValidation, validate, authController.resetPassword);
 
+// Refresh token route - debe ser pública
+router.post('/refresh-token', authController.refreshToken);
+
 // Protected routes
 router.use(protect);
 router.patch('/update-password', authController.updatePassword);
 
 // Admin only routes
-router.post('/register', protect, adminOnly, registerValidation, validate, authController.register);
+router.post('/register', adminOnly, registerValidation, validate, authController.register);
+
+// Logout route
+router.post('/logout', authController.logout);
 
 module.exports = router;
