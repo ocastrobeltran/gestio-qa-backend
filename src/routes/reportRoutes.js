@@ -7,5 +7,6 @@ router.get('/by-status', reportController.getProjectsByStatus);
 router.get('/by-analyst', reportController.getProjectsByAnalyst);
 router.get('/by-client', reportController.getProjectsByClient);
 router.get('/detailed', reportController.getDetailedReport);
+router.get('/quality-metrics', reportController.getQualityMetrics);
 
 module.exports = router;

@@ -4,6 +4,7 @@ const projectController = require('../controllers/projectController');
 const commentRoutes = require('./commentRoutes');
 const { protect, adminOnly, analystOrAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validator');
+const defectRoutes = require('./defectRoutes');
 
 const router = express.Router();
 
@@ -55,8 +56,11 @@ const projectValidation = [
 // Protect all project routes
 router.use(protect);
 
-// Usar rutas de comentarios
+// Comment routes
 router.use('/:id/comments', commentRoutes);
+
+// Defect routes
+router.use('/:projectId/defects', defectRoutes);
 
 // Get all projects
 router.get('/', projectController.getAllProjects);

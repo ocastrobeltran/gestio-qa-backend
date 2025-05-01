@@ -69,6 +69,14 @@ const Project = sequelize.define('Project', {
       model: User,
       key: 'id'
     }
+  },
+  priority: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'Media',
+    validate: {
+      isIn: [['Alta', 'Media', 'Baja']]
+    }
   }
 }, {
   tableName: 'projects',

@@ -170,6 +170,7 @@ exports.createProject = catchAsync(async (req, res, next) => {
       designer: req.body.designer,
       design_url: req.body.design_url,
       test_url: req.body.test_url,
+      priority: req.body.priority || 'Media',
       qa_analyst_id: req.body.qa_analyst_id,
       status: req.body.status || config.projectStatus.ANALYSIS,
       created_by: req.user.id
@@ -295,6 +296,14 @@ exports.updateProject = catchAsync(async (req, res, next) => {
       });
     }
     
+    if (req.body.priority && req.body.priority !== project.priority) {
+      changes.push({
+        change_type: 'Cambio de prioridad',
+        old_value: project.priority,
+        new_value: req.body.priority
+      });
+    }
+
     // Update project
     await project.update(req.body, { transaction });
     
